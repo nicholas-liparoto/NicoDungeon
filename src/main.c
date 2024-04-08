@@ -43,9 +43,9 @@
 
 // TODO: make the tiles assets and load them directly
 
-// a tile is an 8x8 array of bits
+// a tile is an 8x8 array of bytes
 typedef struct _tile {
-    uint8_t data[8];
+    uint8_t data[64];
     } tile;
 
 // there can be 256 different tiles in use
@@ -134,7 +134,7 @@ void init_graphics(tile *tiles, uint8_t tidmax) {
 
     // 320x180; for 8x8 tiles; 40x22 with 4 pix @ bottom
     xreg_vga_canvas(2);
-    xreg_vga_mode(2,0,0xff00);
+    xreg_vga_mode(2,3,0xff00);
 
     return;
     }
