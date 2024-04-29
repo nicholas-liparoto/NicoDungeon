@@ -1,3 +1,6 @@
+// uint8_t for x and y coordinates
+// keep global variables of character
+
 #include <rp6502.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +15,7 @@
 #define SC_WIDTH 320
 #define SC_HEIGHT 180
 
+
 // tile size in pixels
 #define T_WIDTH 8
 #define T_HEIGHT 8
@@ -19,6 +23,16 @@
 // screen size in tiles
 #define SC_T_WIDTH (SC_WIDTH/T_WIDTH)
 #define SC_T_HEIGHT (SC_HEIGHT/T_HEIGHT)
+
+// Coordinates for character
+uint8_t CHARX;
+uint8_t CHARY;
+uint8_t CharHitpoints;
+
+// Coordinates for adversary
+uint8_t ADVX;
+uint8_t ADVY;
+uint8_t AdvHitpoints;
 
 // handy macros for the rather lazy
 #define A0 (RIA.addr0)
@@ -90,8 +104,8 @@ tile *create_tiles(uint8_t tidmax) {
     // tile 0 and 1
     // no bzero or memset, so...
     for(j=0;j<tsz;j++) {
-        t[0].data[j] = 0;
-        t[1].data[j] = 0xff;
+        t[0].data[j] = 0; //balck
+        t[1].data[j] = 0xff; //white   make 2 more
         }
 
     // all the other tiles are random
@@ -99,15 +113,15 @@ tile *create_tiles(uint8_t tidmax) {
     i=2;
     do {
 	for (j=0; j<tsz; j++)
-		t[i].data[j] = rand() & 0xff;
+		t[i].data[j] = rand() & 0xff; ///////////////////////////  & limits the random from 1-255
     	} while (i++ < tidmax);
 
     return t;
-    }
+}                  /////// don't need this
   
 void clobber_tiles(tile *t) {
     free(t);
-    }
+}
 
 void init_graphics(tile *tiles, uint8_t tidmax) {
     uint8_t i,j;
@@ -135,60 +149,185 @@ void init_graphics(tile *tiles, uint8_t tidmax) {
     // 320x180; for 8x8 tiles; 40x22 with 4 pix @ bottom
     xreg_vga_canvas(2);
     xreg_vga_mode(2,3,0xff00);
+    // xreg_vga_mode(0,1); // Turn on extra layer for print statements
 
     return;
-    }
+}
+
 
 void init_board(uint8_t tidmax) {
     uint8_t i;
     uint16_t j;
 
     // black board
-    for(i=0;i<SC_T_HEIGHT;i++)
-	for(j=0; j<SC_T_WIDTH; j++)
-        	B(i,j) = 0;
-    return;
-    }
- 
-void right() {
-    uint8_t i,j;
-    for(i=0;i<SC_T_HEIGHT;i++)
-    	for(j=0;j<SC_T_WIDTH-1;j++)
-	    B(i,j) = B(i,j+1);
+    // for(i=0;i<SC_T_HEIGHT;i++)
+	//    for(j=0; j<SC_T_WIDTH; j++)
+    //    	B(i,j) = 0;         // = (i+j) & 0xff;
+    // return;
+
+    // for(i=0;i<SC_T_HEIGHT;i++)
+    //    for(j=0; j<SC_T_WIDTH; j++)
+    //        B(i,j) = (i+j) & 0xff;
 
     for(i=0;i<SC_T_HEIGHT;i++)
-	B(i,SC_T_WIDTH-1) = rand()&0x01 ? 1 : 0;
+        B(i,0) = 1;
+    for(i=0;i<SC_T_HEIGHT;i++)
+        B(i,SC_T_WIDTH-1) = 1;
+    for(j=0;j<SC_T_WIDTH;j++)
+        B(0,j) = 1;
+    for(j=0;j<SC_T_WIDTH;j++)
+        B(SC_T_HEIGHT-1,j) = 1;
+    
+   
+    return;
+}           ////// create black background then white fence then define values for character's coordinates
+ 
+void draw_character(uint8_t color){
+    B(CHARY,CHARX) = color;
+    return;
+}
+
+void draw_adversary(uint8_t color){
+    B(ADVY,ADVX) = color;
+    return;
+}
+
+uint8_t check_char_hitpoints(){
+    return CharHitpoints;
+}
+
+uint8_t check_adv_hitpoints(){
+    return AdvHitpoints;
+}
+
+
+void right() {
+    uint8_t i,j;
+    //for(i=0;i<SC_T_HEIGHT;i++)
+    //	for(j=0;j<SC_T_WIDTH-1;j++)
+	//    B(i,j) = B(i,j+1);
+
+    //for(i=0;i<SC_T_HEIGHT;i++)
+	//B(i,SC_T_WIDTH-1) = rand()&0x01 ? 1 : 1;    // The rand()&0x01 changes the occurence of white tiles (must be binary) can only be 0x01 or 0x11
+      //                                  ^ this number set at 1 makes screen all white
+    if (CHARX < SC_T_WIDTH-2 && (CHARX != ADVX-1 || CHARY !=ADVY)){
+        draw_character(0);
+        CHARX += 1;
+        draw_character(4);
     }
-	 
+    if (CHARX == ADVX-1 && CHARY == ADVY){
+        if (AdvHitpoints != 0 && CharHitpoints != 0){
+            AdvHitpoints -= 1;
+            CharHitpoints -=1;
+        }
+        else if (AdvHitpoints == 0){
+            draw_adversary(0);
+        }
+        else if (CharHitpoints == 0){
+            draw_character(0);
+        }
+    }
+}
+
 void left() {
     uint8_t i,j;
-    for (i=0; i<SC_T_HEIGHT; i++)
-	    for(j=SC_T_WIDTH-1; j>=1; --j) 
-		    B(i,j) = B(i,j-1);
-    for(i=0;i<SC_T_HEIGHT;i++)
-	B(i,0) = rand()&0x01 ? 1 : 0;
+    //for (i=0; i<SC_T_HEIGHT; i++)
+	//    for(j=SC_T_WIDTH-1; j>=1; --j) 
+	//	    B(i,j) = B(i,j-1);
+    //for(i=0;i<SC_T_HEIGHT;i++)
+	//B(i,0) = rand()&0x01 ? 1 : 1;                ///// in right and left change everything. Juts change the coordinates of the character and redraw board
+    if (CHARX > 1 && (CHARX != ADVX+1 || CHARY !=ADVY)){
+        draw_character(0);
+        CHARX -= 1;
+        draw_character(4);
     }
+    if (CHARX == ADVX+1 && CHARY == ADVY){
+        if (AdvHitpoints != 0 && CharHitpoints != 0){
+            AdvHitpoints -= 1;
+            CharHitpoints -=1;
+        }
+        else if (AdvHitpoints == 0){
+            draw_adversary(0);
+        }
+        else if (CharHitpoints == 0){
+            draw_character(0);
+        }
+    }
+    
+}
+
+void up() {
+    uint8_t i,j;
+
+    if (CHARY > 1 && (CHARY !=ADVY+1 || CHARX != ADVX)) {
+        draw_character(0);
+        CHARY -= 1;
+        draw_character(4);
+    }
+    if (CHARY == ADVY+1 && CHARX == ADVX){
+        if (AdvHitpoints != 0 && CharHitpoints != 0){
+            AdvHitpoints -= 1;
+            CharHitpoints -=1;
+        }
+        else if (AdvHitpoints == 0){
+            draw_adversary(0);
+        }
+        else if (CharHitpoints == 0){
+            draw_character(0);
+        }
+    }
+
+}
+
+void down() {
+    uint8_t i,j;
+    if (CHARY < SC_T_HEIGHT-2 && (CHARY != ADVY-1 || CHARX != ADVX)){
+        draw_character(0);
+        CHARY += 1;
+        draw_character(4);
+    }
+    if (CHARY == ADVY-1 && CHARX == ADVX){
+        if (AdvHitpoints != 0 && CharHitpoints != 0){
+            AdvHitpoints -= 1;
+            CharHitpoints -=1;
+        }
+        else if (AdvHitpoints == 0){
+            draw_adversary(0);
+        }
+        else if (CharHitpoints == 0){
+            draw_character(0);
+        }
+    }
+    
+}
 	 
 void draw_board() {
     uint8_t i,j;
     uint8_t *bptr = &B(0,0);
     A = BOARD_BASE;
     S = 1;
-    for(i=0;i<SC_T_HEIGHT;i++)
+    for(i=0;i<SC_T_HEIGHT;i++){
         for(j=0;j<SC_T_WIDTH;j+=10) {
-            R = *bptr++;
-            R = *bptr++;
-            R = *bptr++;
-            R = *bptr++;
-            R = *bptr++;
-            R = *bptr++;
-            R = *bptr++;
-            R = *bptr++;
-            R = *bptr++;
-            R = *bptr++;
+            if (i == ADVX || j == ADVY){   // doesn't draw black spot at the adversaries location
+                continue;
             }
-    return;
+            else 
+            {
+                R = *bptr++;
+                R = *bptr++;
+                R = *bptr++;
+                R = *bptr++;
+                R = *bptr++;
+                R = *bptr++;
+                R = *bptr++;
+                R = *bptr++;
+                R = *bptr++;
+                R = *bptr++;
+            }
+        }
     }
+    return;
+}
 
 #define NTWEAKS 16
 void tweak_board(uint8_t tidmax) {
@@ -198,8 +337,8 @@ void tweak_board(uint8_t tidmax) {
         j = rand() % SC_T_WIDTH;
         tid = rand() % (tidmax+1);
         B(i,j) = rand()&0x01 ? 1 : 0;
-        }
     }
+}
 
 // keyboard uses
 // 32 bytes immediately before 0xFF00, config struct for graphics.
@@ -207,11 +346,11 @@ void tweak_board(uint8_t tidmax) {
 
 void enable_raw_keyboard() {
     xreg(0, 0, 0x00, KEYBOARD_BASE); // enable
-    }
+}
 
 void disable_raw_keyboard() {
     xreg(0, 0, 0x00, 0xFFFF); // disable
-    }
+}
 
 uint8_t key_down(uint8_t c) {
 	uint8_t res;
@@ -234,14 +373,26 @@ void main() {
     tile *t;
 
     _randomize();
-    
-    init_board(tidmax);
 
+    
+    CHARX = 5;
+    CHARY = 3;
+    ADVX = 19; //rand() % SC_T_HEIGHT-5 + 5;
+    ADVY = 11; //rand() % SC_T_WIDTH-5 + 5;
+    CharHitpoints = rand() % 10 + 1;
+    AdvHitpoints = rand() % 10 + 1;
+
+    init_board(tidmax);
+    draw_character(4);
+    draw_adversary(1);
     t = create_tiles(tidmax);
     init_graphics(t,tidmax); 
     clobber_tiles(t);
 
     enable_raw_keyboard();
+
+    // printf("Hello");        // print 30 blank lines to clear all the junk words
+
 
     //tweak_board(tidmax);
 
@@ -261,7 +412,9 @@ void main() {
 	    
 	    gets(s);
 	    if ((s[0] == 'a') || (s[0] == 'A')) left();
-	    else if ((s[0] == 'd') || (s[0] == 'D')) right();
+	    else if ((s[0] == 'd') || (s[0] == 'D')) right();  ////// add w and s for up and down
+        else if ((s[0] == 'w') || (s[0] == 'W')) up(); 
+        else if ((s[0] == 's') || (s[0] == 'S')) down(); 
 
             draw_board();
             board_changed = TRUE;
@@ -269,3 +422,4 @@ void main() {
         }
     disable_raw_keyboard();
 }
+
